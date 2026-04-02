@@ -113,7 +113,6 @@ class LimitDefinition(MovingCameraScene):
         _y1 = axes.c2p(0, 2.4)[1]
 
         def _delta(e: float) -> float:
-            """Largest δ that works for the given ε (with small safety margin)."""
             dr = np.sqrt(self.L + e) - self.A
             dl = self.A - np.sqrt(max(self.L - e, 1e-6))
             return min(dr, dl) * 0.88
