@@ -3,17 +3,17 @@ import numpy as np
 
 
 class LimitDefinition(MovingCameraScene):
-    A = 2.0  # x-value being approached
-    L = 2.0  # left-hand limit:  lim_{x→A⁻} f(x) = L
+    A = 2.0
+    L = 2.8
 
     @staticmethod
     def f_left(x):
-        """Left branch: wiggly, approaches L=2 as x→2⁻."""
+        """Left branch: wiggly, ends at f_left(A) = 2.0."""
         return x + 0.35 * np.sin(3 * np.pi * x)
 
     @staticmethod
     def f_right(x):
-        """Right branch: wiggly, jumps to a different level for x>2."""
+        """Right branch: wiggly, approaches L=2.8 as x→2⁺."""
         return -0.5 * x + 3.8 + 0.3 * np.sin(3 * np.pi * x)
 
     def construct(self):
@@ -21,11 +21,11 @@ class LimitDefinition(MovingCameraScene):
         self.camera.frame.save_state()
 
         # fmt: off
-        C_FUNC   = "#1A6FC4"  # blue   - graph
-        C_LIMIT  = "#B03A2E"  # red    - limit value / L guide
-        C_POINT  = "#CA6F1E"  # orange - moving tracker dot
-        C_TEXT   = "#1A1A1A"
-        C_AXES   = "#555555"
+        C_FUNC  = "#1A6FC4"  # blue   – graph
+        C_LIMIT = "#B03A2E"  # red    – limit / L guide
+        C_POINT = "#CA6F1E"  # orange – moving tracker dot
+        C_TEXT  = "#1A1A1A"
+        C_AXES  = "#555555"
         # fmt: on
 
         #
@@ -75,8 +75,8 @@ class LimitDefinition(MovingCameraScene):
         hole.set_fill(WHITE, opacity=1)
         hole.move_to(axes.c2p(self.A, self.L))
 
-        right_origin = Dot(
-            axes.c2p(self.A, self.f_right(self.A)),
+        left_endpoint = Dot(
+            axes.c2p(self.A, self.f_left(self.A)),
             color=C_FUNC,
             radius=0.10,
             z_index=5,
@@ -84,7 +84,7 @@ class LimitDefinition(MovingCameraScene):
 
         self.play(Create(left_branch), run_time=1.0)
         self.play(Create(right_branch), run_time=0.8)
-        self.play(FadeIn(hole), FadeIn(right_origin))
+        self.play(FadeIn(hole), FadeIn(left_endpoint))
         self.wait(0.4)
 
         #
@@ -104,7 +104,6 @@ class LimitDefinition(MovingCameraScene):
             stroke_width=1.8,
             dash_length=0.12,
         )
-        # Vertical dashed line at x = A (from x-axis up to the hole)
         a_guide = DashedLine(
             axes.c2p(self.A, 0),
             axes.c2p(self.A, self.L),
@@ -123,14 +122,13 @@ class LimitDefinition(MovingCameraScene):
         self.wait(0.5)
 
         #
-        # MOVING DOT: left-hand approach x → A⁻
+        # MOVING DOT: right-hand approach x → A⁺
         #
-
-        x_t = ValueTracker(0.5)
+        x_t = ValueTracker(3.3)
 
         moving_dot = always_redraw(
             lambda: Dot(
-                axes.c2p(x_t.get_value(), self.f_left(x_t.get_value())),
+                axes.c2p(x_t.get_value(), self.f_right(x_t.get_value())),
                 color=C_POINT,
                 radius=0.09,
                 z_index=6,
@@ -139,8 +137,8 @@ class LimitDefinition(MovingCameraScene):
 
         h_trace = always_redraw(
             lambda: DashedLine(
-                axes.c2p(0, self.f_left(x_t.get_value())),
-                axes.c2p(x_t.get_value(), self.f_left(x_t.get_value())),
+                axes.c2p(0, self.f_right(x_t.get_value())),
+                axes.c2p(x_t.get_value(), self.f_right(x_t.get_value())),
                 color=C_POINT,
                 stroke_width=1.4,
                 dash_length=0.09,
@@ -150,7 +148,7 @@ class LimitDefinition(MovingCameraScene):
         v_trace = always_redraw(
             lambda: DashedLine(
                 axes.c2p(x_t.get_value(), 0),
-                axes.c2p(x_t.get_value(), self.f_left(x_t.get_value())),
+                axes.c2p(x_t.get_value(), self.f_right(x_t.get_value())),
                 color=C_POINT,
                 stroke_width=1.4,
                 dash_length=0.09,
@@ -159,7 +157,7 @@ class LimitDefinition(MovingCameraScene):
 
         y_dot = always_redraw(
             lambda: Dot(
-                axes.c2p(0, self.f_left(x_t.get_value())),
+                axes.c2p(0, self.f_right(x_t.get_value())),
                 color=C_POINT,
                 radius=0.07,
                 z_index=6,
@@ -185,7 +183,7 @@ class LimitDefinition(MovingCameraScene):
 
         pt = axes.c2p(self.A, self.L)
         self.play(
-            x_t.animate.set_value(1.999),
+            x_t.animate.set_value(2.001),
             self.camera.frame.animate.scale(0.35).move_to(pt),
             run_time=5.0,
             rate_func=smooth,
