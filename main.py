@@ -4,7 +4,7 @@ import numpy as np
 
 class LimitDefinition(MovingCameraScene):
     # fmt: off
-    A = 1.0
+    A = 1.0                             # limit point on x-axis  
     L = 1.0                             # limit value at x = A
     F = staticmethod(lambda x: x**2)    # function to plot
     EPS_0 = 0.55                        # initial epsilon
@@ -38,18 +38,9 @@ class LimitDefinition(MovingCameraScene):
                 "tip_length": 0.20,
                 "stroke_width": 2,
             },
-            x_axis_config={
-                "numbers_to_include": [1, 2],
-                "numbers_with_elongated_ticks": [1, 2],
-            },
-            y_axis_config={
-                "numbers_to_include": [1, 2],
-                "numbers_with_elongated_ticks": [1, 2],
-            },
+            x_axis_config={},
+            y_axis_config={},
         ).shift(DOWN * 0.3)
-
-        for n in [*axes.get_x_axis().numbers, *axes.get_y_axis().numbers]:
-            n.set_color(C_TEXT)
 
         ax_x = MathTex("x", color=C_TEXT, font_size=26).next_to(
             axes.get_x_axis(), RIGHT, buff=0.12
