@@ -3,35 +3,39 @@ import numpy as np
 
 
 class LimitDefinition(MovingCameraScene):
-    # fmt: off
-    A = 1.0                             # limit point on x-axis  
-    L = 1.0                             # limit value at x = A
-    F = staticmethod(lambda x: x**2)    # function to plot
-    EPS_0 = 0.55                        # initial epsilon
-    EPS_1 = 0.09                        # final epsilon
-    # fmt: on
+    A = 2.0  # x-value being approached
+    L = 2.0  # left-hand limit:  lim_{x→A⁻} f(x) = L
+
+    @staticmethod
+    def f_left(x):
+        """Left branch: wiggly, approaches L=2 as x→2⁻."""
+        return x + 0.35 * np.sin(3 * np.pi * x)
+
+    @staticmethod
+    def f_right(x):
+        """Right branch: wiggly, jumps to a different level for x>2."""
+        return -0.5 * x + 3.8 + 0.3 * np.sin(3 * np.pi * x)
 
     def construct(self):
         self.camera.background_color = WHITE
         self.camera.frame.save_state()
 
         # fmt: off
-        C_FUNC = "#1A6FC4"   # blue   - graph
-        C_EPS = "#B03A2E"    # red    - epsilon band
-        C_DELTA = "#1D6A39"  # green  - delta band
-        C_POINT = "#CA6F1E"  # orange - limit point
-        C_TEXT = "#1A1A1A"
-        C_AXES = "#555555"
+        C_FUNC   = "#1A6FC4"  # blue   - graph
+        C_LIMIT  = "#B03A2E"  # red    - limit value / L guide
+        C_POINT  = "#CA6F1E"  # orange - moving tracker dot
+        C_TEXT   = "#1A1A1A"
+        C_AXES   = "#555555"
         # fmt: on
 
         #
-        # AXES with ticks and labels
+        # AXES
         #
         axes = Axes(
-            x_range=[0, 2.5, 1],
-            y_range=[0, 2.5, 1],
-            x_length=5.4,
-            y_length=5.4,
+            x_range=[0, 3.5, 1],
+            y_range=[0, 3.5, 1],
+            x_length=5.6,
+            y_length=5.6,
             axis_config={
                 "color": C_AXES,
                 "include_tip": True,
@@ -51,194 +55,142 @@ class LimitDefinition(MovingCameraScene):
 
         self.play(Create(axes), Write(ax_x), Write(ax_y), run_time=1.2)
 
-        graph = axes.plot(
-            self.F,
-            x_range=[0.05, 2.12, 0.01],
+        #
+        # GRAPH: two branches
+        #
+        left_branch = axes.plot(
+            self.f_left,
+            x_range=[0.1, 2.0, 0.005],
             color=C_FUNC,
             stroke_width=3,
         )
-        g_lbl = MathTex(r"f(x)=x^2", color=C_FUNC, font_size=30).next_to(
-            axes.c2p(2.05, self.F(2.05)), UR, buff=0.10
+        right_branch = axes.plot(
+            self.f_right,
+            x_range=[2.0, 3.3, 0.005],
+            color=C_FUNC,
+            stroke_width=3,
         )
 
-        self.play(Create(graph, run_time=1.4), Write(g_lbl))
-        self.wait(0.25)
+        hole = Circle(radius=0.10, color=C_FUNC, stroke_width=2.5)
+        hole.set_fill(WHITE, opacity=1)
+        hole.move_to(axes.c2p(self.A, self.L))
 
-        #
-        # LIMIT POINT (a, L) with dashed guide lines
-        #
-        pt = axes.c2p(self.A, self.L)
-        dot = Dot(pt, color=C_POINT, radius=0.09, z_index=5)
-
-        h_guide = DashedLine(
-            axes.c2p(0, self.L), pt, color=C_POINT, stroke_width=1.8, dash_length=0.13
-        )
-        v_guide = DashedLine(
-            axes.c2p(self.A, 0), pt, color=C_POINT, stroke_width=1.8, dash_length=0.13
+        right_origin = Dot(
+            axes.c2p(self.A, self.f_right(self.A)),
+            color=C_FUNC,
+            radius=0.10,
+            z_index=5,
         )
 
-        lbl_a = MathTex("a", color=C_POINT, font_size=30).next_to(
-            axes.c2p(self.A, 0), DOWN, buff=0.20
-        )
-        lbl_L = MathTex("L", color=C_POINT, font_size=30).next_to(
-            axes.c2p(0, self.L), LEFT, buff=0.20
-        )
-
-        self.play(
-            Create(h_guide),
-            Create(v_guide),
-            FadeIn(dot),
-            Write(lbl_a),
-            Write(lbl_L),
-        )
-        self.wait(0.3)
-
-        #
-        # EPSILON-DELTA BANDS
-        #
-        eps_t = ValueTracker(self.EPS_0)
-
-        _x0 = axes.c2p(0, 0)[0]
-        _x1 = axes.c2p(2.4, 0)[0]
-        _y0 = axes.c2p(0, 0)[1]
-        _y1 = axes.c2p(0, 2.4)[1]
-
-        def _delta(e: float) -> float:
-            dr = np.sqrt(self.L + e) - self.A
-            dl = self.A - np.sqrt(max(self.L - e, 1e-6))
-            return min(dr, dl) * 0.88
-
-        def mk_eps_band():
-            e = eps_t.get_value()
-            yt = axes.c2p(0, self.L + e)[1]
-            yb = axes.c2p(0, self.L - e)[1]
-            return Rectangle(
-                width=_x1 - _x0,
-                height=yt - yb,
-                fill_color=C_EPS,
-                fill_opacity=0.18,
-                stroke_color=C_EPS,
-                stroke_width=1.5,
-            ).move_to([(_x0 + _x1) / 2, (yt + yb) / 2, 0])
-
-        def mk_eps_dashes():
-            e = eps_t.get_value()
-            return VGroup(
-                DashedLine(
-                    axes.c2p(0, self.L + e),
-                    axes.c2p(2.4, self.L + e),
-                    color=C_EPS,
-                    stroke_width=1.8,
-                    dash_length=0.10,
-                ),
-                DashedLine(
-                    axes.c2p(0, self.L - e),
-                    axes.c2p(2.4, self.L - e),
-                    color=C_EPS,
-                    stroke_width=1.8,
-                    dash_length=0.10,
-                ),
-            )
-
-        def mk_eps_labels():
-            e = eps_t.get_value()
-            return VGroup(
-                MathTex(r"L+\varepsilon", color=C_EPS, font_size=20).next_to(
-                    axes.c2p(0, self.L + e), LEFT, buff=0.10
-                ),
-                MathTex(r"L-\varepsilon", color=C_EPS, font_size=20).next_to(
-                    axes.c2p(0, self.L - e), LEFT, buff=0.10
-                ),
-            )
-
-        def mk_delta_band():
-            d = _delta(eps_t.get_value())
-            xl = axes.c2p(self.A - d, 0)[0]
-            xr = axes.c2p(self.A + d, 0)[0]
-            return Rectangle(
-                width=xr - xl,
-                height=_y1 - _y0,
-                fill_color=C_DELTA,
-                fill_opacity=0.18,
-                stroke_color=C_DELTA,
-                stroke_width=1.5,
-            ).move_to([(xl + xr) / 2, (_y0 + _y1) / 2, 0])
-
-        def mk_delta_dashes():
-            d = _delta(eps_t.get_value())
-            return VGroup(
-                DashedLine(
-                    axes.c2p(self.A - d, 0),
-                    axes.c2p(self.A - d, 2.4),
-                    color=C_DELTA,
-                    stroke_width=1.8,
-                    dash_length=0.10,
-                ),
-                DashedLine(
-                    axes.c2p(self.A + d, 0),
-                    axes.c2p(self.A + d, 2.4),
-                    color=C_DELTA,
-                    stroke_width=1.8,
-                    dash_length=0.10,
-                ),
-            )
-
-        def mk_delta_labels():
-            d = _delta(eps_t.get_value())
-            return VGroup(
-                MathTex(r"a-\delta", color=C_DELTA, font_size=20).next_to(
-                    axes.c2p(self.A - d, 0), DOWN, buff=0.12
-                ),
-                MathTex(r"a+\delta", color=C_DELTA, font_size=20).next_to(
-                    axes.c2p(self.A + d, 0), DOWN, buff=0.12
-                ),
-            )
-
-        eps_band = always_redraw(mk_eps_band)
-        eps_dashes = always_redraw(mk_eps_dashes)
-        eps_labels = always_redraw(mk_eps_labels)
-        dlt_band = always_redraw(mk_delta_band)
-        dlt_dashes = always_redraw(mk_delta_dashes)
-        dlt_labels = always_redraw(mk_delta_labels)
-
-        self.play(FadeIn(eps_band), Create(eps_dashes), FadeIn(eps_labels))
-        self.wait(0.3)
-
-        self.play(FadeIn(dlt_band), Create(dlt_dashes), FadeIn(dlt_labels))
-        self.wait(0.5)
-
-        #
-        # ZOOM IN on (a, L)
-        #
-        self.play(
-            self.camera.frame.animate.scale(0.38).move_to(pt),
-            run_time=2.6,
-            rate_func=smooth,
-        )
-        self.wait(1.8)
-
-        self.play(
-            Restore(self.camera.frame),
-            run_time=2.0,
-            rate_func=smooth,
-        )
+        self.play(Create(left_branch), run_time=1.0)
+        self.play(Create(right_branch), run_time=0.8)
+        self.play(FadeIn(hole), FadeIn(right_origin))
         self.wait(0.4)
 
         #
-        # SHRINK EPSILON + ZOOM IN
+        # STATIC GUIDE LINES: a and L
+        #
+        lbl_a = MathTex("a", color=C_TEXT, font_size=30).next_to(
+            axes.c2p(self.A, 0), DOWN, buff=0.22
+        )
+        lbl_L = MathTex("L", color=C_LIMIT, font_size=30).next_to(
+            axes.c2p(0, self.L), LEFT, buff=0.22
+        )
+
+        L_guide = DashedLine(
+            axes.c2p(0, self.L),
+            axes.c2p(self.A, self.L),
+            color=C_LIMIT,
+            stroke_width=1.8,
+            dash_length=0.12,
+        )
+        # Vertical dashed line at x = A (from x-axis up to the hole)
+        a_guide = DashedLine(
+            axes.c2p(self.A, 0),
+            axes.c2p(self.A, self.L),
+            color=C_TEXT,
+            stroke_width=1.5,
+            dash_length=0.12,
+        )
+
+        self.play(
+            Create(L_guide),
+            Create(a_guide),
+            Write(lbl_a),
+            Write(lbl_L),
+            run_time=1.0,
+        )
+        self.wait(0.5)
+
+        #
+        # MOVING DOT: left-hand approach x → A⁻
         #
 
-        self.play(
-            eps_t.animate.set_value(self.EPS_1),
-            self.camera.frame.animate.scale(0.30).move_to(pt),
-            run_time=4.5,
-            rate_func=smooth,
+        x_t = ValueTracker(0.5)
+
+        moving_dot = always_redraw(
+            lambda: Dot(
+                axes.c2p(x_t.get_value(), self.f_left(x_t.get_value())),
+                color=C_POINT,
+                radius=0.09,
+                z_index=6,
+            )
         )
-        self.wait(2.0)
+
+        h_trace = always_redraw(
+            lambda: DashedLine(
+                axes.c2p(0, self.f_left(x_t.get_value())),
+                axes.c2p(x_t.get_value(), self.f_left(x_t.get_value())),
+                color=C_POINT,
+                stroke_width=1.4,
+                dash_length=0.09,
+            )
+        )
+
+        v_trace = always_redraw(
+            lambda: DashedLine(
+                axes.c2p(x_t.get_value(), 0),
+                axes.c2p(x_t.get_value(), self.f_left(x_t.get_value())),
+                color=C_POINT,
+                stroke_width=1.4,
+                dash_length=0.09,
+            )
+        )
+
+        y_dot = always_redraw(
+            lambda: Dot(
+                axes.c2p(0, self.f_left(x_t.get_value())),
+                color=C_POINT,
+                radius=0.07,
+                z_index=6,
+            )
+        )
+
+        x_dot = always_redraw(
+            lambda: Dot(
+                axes.c2p(x_t.get_value(), 0),
+                color=C_POINT,
+                radius=0.07,
+                z_index=6,
+            )
+        )
 
         self.play(
-            Restore(self.camera.frame),
-            run_time=2.0,
+            FadeIn(moving_dot),
+            FadeIn(h_trace),
+            FadeIn(v_trace),
+            FadeIn(y_dot),
+            FadeIn(x_dot),
+        )
+
+        pt = axes.c2p(self.A, self.L)
+        self.play(
+            x_t.animate.set_value(1.999),
+            self.camera.frame.animate.scale(0.35).move_to(pt),
+            run_time=5.0,
             rate_func=smooth,
         )
         self.wait(2.5)
+
+        self.play(Restore(self.camera.frame), run_time=2.0, rate_func=smooth)
+        self.wait(1.5)
