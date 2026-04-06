@@ -9,9 +9,6 @@ wheels/
 # virtual environments
 .venv/
 
-# manim output
-media/
-
 # uv
 .python-version
 
@@ -22,3 +19,11 @@ media/
 # OS
 .DS_Store
 Thumbs.db
+
+!media/gif/
+
+# ignore everything else inside media
+media/images
+media/Tex
+media/texts
+media/videos
